@@ -22,6 +22,5 @@ local.properties
 .externalNativeBuild
 .cxx
 *.iml
-*.tflite
 *.pt
 *.onnx
