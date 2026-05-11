@@ -21,17 +21,9 @@ An Android application that detects property sale/rent signboards in real time u
 - SQLite
 - Android Studio
 
-## Screenshots
+## Screenrecording
 
-### Dashboard
-
-
-
-### Map View
-
-
-
-### Reports
+https://drive.google.com/file/d/1QDQ-4phHUwMwKgmahpNALmKj_ypr_VkI/view?usp=share_link
 
 
 
