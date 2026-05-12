@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "979830195943",
+    "project_id": "propertyproject-20de7",
+    "storage_bucket": "propertyproject-20de7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:979830195943:android:d82f01b0aa5730c3898442",
+        "android_client_info": {
+          "package_name": "com.sehajsinghsidhu.propertydetector"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5c-o6GczZgB4dykb46v8m5t9fGSxgtSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -4,9 +4,6 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.Icons
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
-import android.graphics.BitmapFactory
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -29,6 +26,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sehajsinghsidhu.propertydetector.ui.theme.PropertyDetectorTheme
 import java.io.File
 import java.io.FileOutputStream
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -64,6 +62,7 @@ fun AppNavigation() {
     val tripManager = remember { TripManager(context) }
     val dbManager = remember { DatabaseManager(context) }
     val reportGenerator = remember { ReportGenerator(context) }
+    val firebaseManager = remember { FirebaseManager() }
     var lastTripId by remember { mutableStateOf<String?>(null) }
     var previousTrips by remember { mutableStateOf(dbManager.getAllTrips()) }
 
@@ -95,6 +94,7 @@ fun AppNavigation() {
             when (currentScreen) {
                 "camera" -> MainScreen(
                     tripManager = tripManager,
+                    firebaseManager = firebaseManager,
                     onTripStopped = { tripId ->
                         lastTripId = tripId
                         previousTrips = dbManager.getAllTrips()
@@ -119,6 +119,7 @@ fun AppNavigation() {
 @Composable
 fun MainScreen(
     tripManager: TripManager,
+    firebaseManager: FirebaseManager,
     onTripStopped: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -131,6 +132,7 @@ fun MainScreen(
     var isTripActive by remember { mutableStateOf(false) }
     var detectionCount by remember { mutableIntStateOf(0) }
     var statusMessage by remember { mutableStateOf("Ready") }
+    var alertMessage by remember { mutableStateOf("") }
 
     var totalTrips by remember { mutableIntStateOf(dbManager.getAllTrips().size) }
     var totalDetections by remember {
@@ -139,6 +141,31 @@ fun MainScreen(
                 dbManager.getDetectionsForTrip(it.tripId).size
             }
         )
+    }
+
+    // Check for nearby detections from Firebase every 5 seconds while trip is active
+    LaunchedEffect(isTripActive) {
+        if (isTripActive) {
+            while (isTripActive) {
+                val location = tripManager.getLastLocation()
+                if (location != null) {
+                    firebaseManager.getNearbyDetections(
+                        location.latitude,
+                        location.longitude,
+                        50f
+                    ) { nearbyDetections ->
+                        if (nearbyDetections.isNotEmpty()) {
+                            alertMessage = "⚠️ For Sale board ahead! (${nearbyDetections.size} nearby)"
+                        } else {
+                            alertMessage = ""
+                        }
+                    }
+                }
+                delay(5000)
+            }
+        } else {
+            alertMessage = ""
+        }
     }
 
     Scaffold { padding ->
@@ -186,27 +213,38 @@ fun MainScreen(
                 Text(text = "Detections: $detectionCount")
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = statusMessage)
+
+                if (alertMessage.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = alertMessage,
+                            modifier = Modifier.padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-
                         Text(
                             text = "Dashboard",
                             style = MaterialTheme.typography.titleMedium
                         )
-
                         Spacer(modifier = Modifier.height(8.dp))
-
                         Text("Trips Saved: $totalTrips")
-
                         Spacer(modifier = Modifier.height(4.dp))
-
                         Text("Total Detections: $totalDetections")
                     }
                 }
@@ -216,15 +254,10 @@ fun MainScreen(
                     onClick = {
                         if (isTripActive) {
                             val finishedTripId = tripManager.getCurrentTripId()
-
                             tripManager.stopTrip()
-
                             isTripActive = false
                             statusMessage = "Trip stopped"
-
-                            finishedTripId?.let {
-                                onTripStopped(it)
-                            }
+                            finishedTripId?.let { onTripStopped(it) }
                             totalTrips = dbManager.getAllTrips().size
                             totalDetections = dbManager.getAllTrips().sumOf {
                                 dbManager.getDetectionsForTrip(it.tripId).size

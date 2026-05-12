@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -81,5 +82,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("com.itextpdf:itext7-core:7.2.5")
     implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-database-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
     }
 

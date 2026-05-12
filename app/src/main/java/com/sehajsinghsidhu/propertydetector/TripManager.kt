@@ -5,7 +5,10 @@ import android.location.Location
 import java.util.UUID
 import android.util.Log
 
+
 class TripManager(private val context: Context) {
+
+    private val firebaseManager = FirebaseManager()
 
     private val dbManager = DatabaseManager(context)
     private val gpsModule = GPSModule(context)
@@ -85,7 +88,10 @@ class TripManager(private val context: Context) {
         )
         dbManager.insertDetection(detection)
         recentDetections.add(detection)
+        // Upload to Firebase for shared alerts
+        firebaseManager.uploadDetection(detection)
     }
+    fun getLastLocation() = gpsModule.getLastLocation()
 
     fun getCurrentSpeed(): Float {
         return gpsModule.getLastLocation()?.speed ?: 0f
