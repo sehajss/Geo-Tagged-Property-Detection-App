@@ -19,6 +19,9 @@ class TripManager(private val context: Context) {
     private var totalDistance = 0f
 
     private val recentDetections = mutableListOf<Detection>()
+    private val notificationHelper = NotificationHelper(context)
+    private var lastNotificationTime = 0L
+    private val notificationCooldownMs = 15000L
 
     fun startTrip() {
         val tripId = UUID.randomUUID().toString()
@@ -39,6 +42,30 @@ class TripManager(private val context: Context) {
                 totalDistance += distance
             }
             lastLocation = location
+
+            firebaseManager.getNearbyDetections(
+                location.latitude,
+                location.longitude,
+                150f
+            ) { nearby ->
+
+                if (nearby.isNotEmpty()) {
+
+                    val currentTime = System.currentTimeMillis()
+
+                    if (currentTime - lastNotificationTime > notificationCooldownMs) {
+
+                        val detection = nearby.first()
+
+                        notificationHelper.showNearbyPropertyNotification(
+                            detection.propertyType,
+                            nearby.size
+                        )
+
+                        lastNotificationTime = currentTime
+                    }
+                }
+            }
         }
     }
 
@@ -91,6 +118,7 @@ class TripManager(private val context: Context) {
         // Upload to Firebase for shared alerts
         firebaseManager.uploadDetection(detection)
     }
+
     fun getLastLocation() = gpsModule.getLastLocation()
 
     fun getCurrentSpeed(): Float {

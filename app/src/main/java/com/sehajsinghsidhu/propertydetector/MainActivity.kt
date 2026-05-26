@@ -26,13 +26,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sehajsinghsidhu.propertydetector.ui.theme.PropertyDetectorTheme
 import java.io.File
 import java.io.FileOutputStream
-import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
     private val permissions = arrayOf(
         Manifest.permission.CAMERA,
-        Manifest.permission.ACCESS_FINE_LOCATION
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.POST_NOTIFICATIONS
     )
 
     private val permissionLauncher = registerForActivityResult(
@@ -132,7 +132,6 @@ fun MainScreen(
     var isTripActive by remember { mutableStateOf(false) }
     var detectionCount by remember { mutableIntStateOf(0) }
     var statusMessage by remember { mutableStateOf("Ready") }
-    var alertMessage by remember { mutableStateOf("") }
 
     var totalTrips by remember { mutableIntStateOf(dbManager.getAllTrips().size) }
     var totalDetections by remember {
@@ -143,30 +142,6 @@ fun MainScreen(
         )
     }
 
-    // Check for nearby detections from Firebase every 5 seconds while trip is active
-    LaunchedEffect(isTripActive) {
-        if (isTripActive) {
-            while (isTripActive) {
-                val location = tripManager.getLastLocation()
-                if (location != null) {
-                    firebaseManager.getNearbyDetections(
-                        location.latitude,
-                        location.longitude,
-                        50f
-                    ) { nearbyDetections ->
-                        if (nearbyDetections.isNotEmpty()) {
-                            alertMessage = "⚠️ For Sale board ahead! (${nearbyDetections.size} nearby)"
-                        } else {
-                            alertMessage = ""
-                        }
-                    }
-                }
-                delay(5000)
-            }
-        } else {
-            alertMessage = ""
-        }
-    }
 
     Scaffold { padding ->
         Column(
@@ -214,22 +189,6 @@ fun MainScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(text = statusMessage)
 
-                if (alertMessage.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = alertMessage,
-                            modifier = Modifier.padding(12.dp),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 

@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
+import android.graphics.Matrix
 import androidx.camera.core.ImageProxy
 import java.io.ByteArrayOutputStream
 import org.tensorflow.lite.Interpreter
@@ -32,6 +33,8 @@ class DetectionManager(private val context: Context) {
             val buffer = ByteBuffer.allocateDirect(modelBytes.size)
             buffer.order(ByteOrder.nativeOrder())
             buffer.put(modelBytes)
+
+            buffer.rewind()
 
             interpreter = Interpreter(buffer)
 
@@ -68,7 +71,16 @@ class DetectionManager(private val context: Context) {
                 return
             }
 
-            val resizedBitmap = Bitmap.createScaledBitmap(bitmap, 640, 640, true)
+            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+
+            val rotatedBitmap = when (rotationDegrees) {
+                90 -> rotateBitmap(bitmap, 90f)
+                180 -> rotateBitmap(bitmap, 180f)
+                270 -> rotateBitmap(bitmap, 270f)
+                else -> bitmap
+            }
+
+            val resizedBitmap = Bitmap.createScaledBitmap(rotatedBitmap, 640, 640, true)
 
             val inputBuffer = ByteBuffer.allocateDirect(1 * 640 * 640 * 3 * 4)
             inputBuffer.order(ByteOrder.nativeOrder())
@@ -106,20 +118,48 @@ class DetectionManager(private val context: Context) {
 
                 if (confidence > bestConfidence) {
                     bestConfidence = confidence
+
+                    if (confidence > 0.05f) {
+
+                        val left = ((x - w / 2f) * rotatedBitmap.width)
+                            .toInt()
+                            .coerceAtLeast(0)
+
+                        val top = ((y - h / 2f) * rotatedBitmap.height)
+                            .toInt()
+                            .coerceAtLeast(0)
+
+                        val boxWidth = (w * rotatedBitmap.width).toInt()
+                        val boxHeight = (h * rotatedBitmap.height).toInt()
+
+                        if (
+                            left + boxWidth <= rotatedBitmap.width &&
+                            top + boxHeight <= rotatedBitmap.height &&
+                            boxWidth > 0 &&
+                            boxHeight > 0
+                        ) {
+
+                            val croppedBitmap = Bitmap.createBitmap(
+                                rotatedBitmap,
+                                left,
+                                top,
+                                boxWidth,
+                                boxHeight
+                            )
+
+                            ocrProcessor.processImage(croppedBitmap) { isForSale, _, propertyType ->
+
+                                if (isForSale) {
+                                    onForSaleDetected(propertyType, confidence, croppedBitmap)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
             android.util.Log.d("DetectionManager", "Best confidence: $bestConfidence")
 
-            if (bestConfidence > 0.05f) {
-
-                ocrProcessor.processImage(bitmap) { isForSale, _, propertyType ->
-
-                    if (isForSale) {
-                        onForSaleDetected(propertyType, bestConfidence, bitmap)
-                    }
-                }
-            }
 
 
         } catch (e: Exception) {
@@ -153,6 +193,21 @@ class DetectionManager(private val context: Context) {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(degrees)
+
+        return Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
     }
 
     fun shutdown() {
